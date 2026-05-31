@@ -34,10 +34,10 @@ You can use the following checklist to track progress incrementally.
     - Add `restoreBackup(backupId, spreadsheetId)`.
 
 ### 3. Schema Data Structures and Hashing
-- `[ ]` Define TypeScript interfaces for schemas (`SchemaDefinition`, `TabDefinition`, `ColumnDefinition`).
-- `[ ]` Create `SchemaHasher.ts`.
+- `[x]` Define TypeScript interfaces for schemas (`SchemaDefinition`, `TabDefinition`, `ColumnDefinition`).
+- `[x]` Create `SchemaHasher.ts`.
     - Implement a deterministic hashing function (e.g., using `crypto-js` or Web Crypto API) that generates a hash based on tab names, column headers, and structural metadata.
-- `[ ]` Create `SchemaValidator.ts`.
+- `[x]` Create `SchemaValidator.ts`.
     - Implement comparison logic between a GDoc's active structure (fetched via the client) and the expected `SchemaDefinition`.
 
 ### 4. Migration Engine
