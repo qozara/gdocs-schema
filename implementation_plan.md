@@ -18,10 +18,10 @@ Future integration into Quozen Core (Phases 2 and 3) is deferred and documented 
 You can use the following checklist to track progress incrementally.
 
 ### 1. Project Initialization
-- `[ ]` Initialize the standalone project directory at `../gdocs-schema` (outside Quozen, inside the `qozara` parent folder).
-- `[ ]` Initialize a new git repository (`git init`).
-- `[ ]` Set up `package.json` with build scripts (e.g., TypeScript, tsup/rollup) and dependencies (`ajv` for JSON validation, no `googleapis`).
-- `[ ]` Configure ESLint and Prettier for the standalone project.
+- `[x]` Initialize the standalone project directory at `../gdocs-schema` (outside Quozen, inside the `qozara` parent folder).
+- `[x]` Initialize a new git repository (`git init`).
+- `[x]` Set up `package.json` with build scripts (e.g., TypeScript, tsup/rollup) and dependencies (`ajv` for JSON validation, no `googleapis`).
+- `[x]` Configure ESLint and Prettier for the standalone project.
 
 ### 2. Lightweight Fetch-based Google API Layer
 - `[ ]` Create `GoogleSheetsFetchClient.ts`.
