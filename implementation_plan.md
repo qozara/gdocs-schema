@@ -53,10 +53,10 @@ You can use the following checklist to track progress incrementally.
     7. On success, update `current_version` and release lock.
 
 ### 5. Standalone CLI Development
-- `[ ]` Set up `commander` or a similar CLI framework in `src/cli.ts`.
-- `[ ]` Implement `inspect <spreadsheetId>` command to validate structure and output the current hash and version.
-- `[ ]` Implement `migrate <spreadsheetId>` command to run pending migrations safely.
-- `[ ]` Implement `repair <spreadsheetId>` to append missing columns (if corrupted).
+- `[x]` Set up `commander` or a similar CLI framework in `src/cli.ts`.
+- `[x]` Implement `inspect <spreadsheetId>` command to validate structure and output the current hash and version.
+- `[x]` Implement `migrate <spreadsheetId>` command to run pending migrations safely.
+- `[x]` Implement `repair <spreadsheetId>` to append missing columns (if corrupted).
 
 ### 6. Testing
 - `[ ]` Set up a test runner (e.g., Vitest or Jest).
