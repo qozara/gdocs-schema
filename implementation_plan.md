@@ -59,9 +59,9 @@ You can use the following checklist to track progress incrementally.
 - `[x]` Implement `repair <spreadsheetId>` to append missing columns (if corrupted).
 
 ### 6. Testing
-- `[ ]` Set up a test runner (e.g., Vitest or Jest).
-- `[ ]` Write unit tests for `SchemaHasher` and validation logic.
-- `[ ]` Write tests for `MigrationManager` flow, specifically simulating migration failures and verifying rollback procedures (using mocked Google API fetch responses).
+- `[x]` Set up a test runner (e.g., Vitest or Jest).
+- `[x]` Write unit tests for `SchemaHasher` and validation logic.
+- `[x]` Write tests for `MigrationManager` flow, specifically simulating migration failures and verifying rollback procedures (using mocked Google API fetch responses).
 
 ### 7. Documentation
 - `[ ]` Write `README.md` detailing how to instantiate the `SchemaValidator`, create safe migrations (requiring both `up` and `down`), and use the CLI.

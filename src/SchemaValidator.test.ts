@@ -99,4 +99,17 @@ describe('SchemaValidator', () => {
     expect(result.errors).toContain('Tab "Settings" is missing column "key"');
     expect(result.errors).toContain('Tab "Settings" is missing column "value"');
   });
+
+  it('should return immediately if all tabs are missing', async () => {
+    mockClient.getSpreadsheet.mockResolvedValueOnce({
+      sheets: [],
+    });
+
+    const result = await validator.validateStructure('sheet-id', schema);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('Tab "Users" is missing');
+    expect(result.errors).toContain('Tab "Settings" is missing');
+    expect(mockClient.batchGet).not.toHaveBeenCalled();
+  });
 });
