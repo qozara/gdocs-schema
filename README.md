@@ -2,50 +2,6 @@
 
 A standalone Node.js package designed to handle client-side schema validation, structural integrity hashing, concurrent migration locking, and database-like migrations for Google Spreadsheets acting as structured databases.
 
-This package is built to be completely independent of the Quozen codebase, allowing it to be published and consumed as an external dependency.
-
----
-
-## Quozen Context & Background
-
-To ensure that this package integrates seamlessly into future phases of Quozen without interface mismatches, here is how Quozen Core currently manages spreadsheets and settings.
-
-### 1. Database Spreadsheets Structure
-Quozen uses a Google Spreadsheet as a group database. Each group spreadsheet has three required tabs:
-*   **`Expenses`**:
-    *   *Columns:* `id`, `date`, `description`, `amount`, `paidByUserId` (or `paidBy` in old configurations), `category`, `splits` (JSON stringified array), `meta` (JSON stringified object containing `createdAt` and `lastModified`).
-*   **`Settlements`**:
-    *   *Columns:* `id`, `date`, `fromUserId`, `toUserId`, `amount`, `method`, `notes`.
-*   **`Members`**:
-    *   *Columns:* `userId`, `email`, `name`, `role` (`owner` | `member`), `joinedAt`.
-
-### 2. Google Drive Metadata (File Properties)
-Currently, Quozen tags files inside Google Drive metadata (using Custom File Properties) rather than inside the sheet.
-*   `quozen_type` = `group`
-*   `version` = `1.0` (indicates the current Quozen schema version)
-
-### 3. User Settings File (`quozen-settings.json`)
-Quozen stores a centralized JSON configuration in the user's Google Drive root folder:
-```json
-{
-  "version": 1,
-  "activeGroupId": "spreadsheet_id_string",
-  "groupCache": [
-    {
-      "id": "spreadsheet_id_string",
-      "name": "Group Name",
-      "role": "owner",
-      "lastAccessed": "ISO-8601-timestamp"
-    }
-  ],
-  "preferences": {
-    "defaultCurrency": "USD",
-    "theme": "system"
-  },
-  "lastUpdated": "ISO-8601-timestamp"
-}
-```
-
 ---
 
 ## Getting Started
