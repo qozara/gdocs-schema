@@ -1,3 +1,5 @@
+import { GoogleSheetsFetchClient } from './GoogleSheetsFetchClient.js';
+
 export interface ColumnDefinition {
   name: string;
   type?: 'string' | 'number' | 'boolean' | 'integer';
@@ -13,4 +15,10 @@ export interface TabDefinition {
 export interface SchemaDefinition {
   version: number;
   tabs: TabDefinition[];
+}
+
+export interface Migration {
+  version: number;
+  up: (client: GoogleSheetsFetchClient, spreadsheetId: string) => Promise<any>;
+  down: (client: GoogleSheetsFetchClient, spreadsheetId: string) => Promise<any>;
 }

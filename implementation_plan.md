@@ -41,9 +41,9 @@ You can use the following checklist to track progress incrementally.
     - Implement comparison logic between a GDoc's active structure (fetched via the client) and the expected `SchemaDefinition`.
 
 ### 4. Migration Engine
-- `[ ]` Create `MigrationManager.ts`.
-- `[ ]` Implement logic to initialize the hidden `_migrations` sheet if missing.
-- `[ ]` Implement the sequence flow with safety nets:
+- `[x]` Create `MigrationManager.ts`.
+- `[x]` Implement logic to initialize the hidden `_migrations` sheet if missing.
+- `[x]` Implement the sequence flow with safety nets:
     1. Acquire lock.
     2. Read `current_version` from `_migrations`.
     3. Identify missing migrations from a provided array of `{ version, up(), down() }` objects.

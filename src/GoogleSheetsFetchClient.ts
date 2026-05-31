@@ -31,6 +31,14 @@ export class GoogleSheetsFetchClient {
       );
     }
 
+    if (typeof response.text === 'function') {
+      const text = await response.text();
+      if (!text) {
+        return {};
+      }
+      return JSON.parse(text);
+    }
+
     return response.json();
   }
 
@@ -205,5 +213,12 @@ export class GoogleSheetsFetchClient {
     }
 
     await this.batchUpdate(spreadsheetId, requests);
+  }
+
+  async deleteFile(fileId: string): Promise<void> {
+    const deleteUrl = `https://www.googleapis.com/drive/v3/files/${fileId}`;
+    await this.request(deleteUrl, {
+      method: 'DELETE',
+    });
   }
 }
