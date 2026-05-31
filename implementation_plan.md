@@ -64,8 +64,8 @@ You can use the following checklist to track progress incrementally.
 - `[x]` Write tests for `MigrationManager` flow, specifically simulating migration failures and verifying rollback procedures (using mocked Google API fetch responses).
 
 ### 7. Documentation
-- `[ ]` Write `README.md` detailing how to instantiate the `SchemaValidator`, create safe migrations (requiring both `up` and `down`), and use the CLI.
-- `[ ]` Provide a guide on how to handle schema updates and write the corresponding migration functions.
+- `[x]` Write `README.md` detailing how to instantiate the `SchemaValidator`, create safe migrations (requiring both `up` and `down`), and use the CLI.
+- `[x]` Provide a guide on how to handle schema updates and write the corresponding migration functions.
 
 ## Verification Plan
 

@@ -48,34 +48,176 @@ Quozen stores a centralized JSON configuration in the user's Google Drive root f
 
 ---
 
-## Design Guidelines for Future-Proof Integration
+## Getting Started
 
-To ensure this package works seamlessly when imported by `@quozen/core` in the future:
+### Installation
 
-### A. Dual Metadata Sync (Hidden Sheet + Drive Properties)
-When running migrations, the tool must update:
-1.  The sequence version (integer/timestamp) in the hidden `_migrations` tab inside the spreadsheet.
-2.  The Drive File Property (`version`) via the Google Drive API to ensure older versions of Quozen Core that inspect properties do not flag the file as unreadable.
+```bash
+npm install @qozara/gdocs-schema
+```
 
-### B. Matching Client Interface
-The `GoogleSheetsFetchClient` created in Phase 2 should map closely to the operations found in Quozen's [GoogleDriveStorageLayer.ts](https://github.com/qozara/Quozen/blob/main/packages/core/src/infrastructure/GoogleDriveStorageLayer.ts). Both clients perform:
-*   `batchUpdateSpreadsheet` (updates tab titles, grid dimensions, frozen rows)
-*   `batchUpdateValues` & `batchGetValues` (writes/reads matrix data from ranges)
-*   `updateFile` (updates Drive properties)
+### Authentication
+Before using the API or CLI, ensure you have a Google API OAuth2 Access Token. For the CLI, you can expose this via the `GOOGLE_ACCESS_TOKEN` environment variable.
 
-This allows Quozen Core to easily wrap or supply its own fetch implementation to the package.
+---
 
-### C. Structural Hash Mechanism
-*   The `SchemaHasher` should inspect the spreadsheet metadata (specifically sheet titles and the header rows of each sheet).
-*   It computes a deterministic hash of this structure.
-*   If a sheet has been altered (e.g., column removed, tab deleted), the hash will mismatch, alerting the app that the file is corrupted.
+## API Reference
 
-### D. Concurrency & Lock Mechanism
-Since multiple clients may access the sheet at once:
-*   **Acquire Lock:** Write a unique client ID and timestamp to a lock cell in `_migrations` (or a Drive file property `migration_lock`). If the lock is held (timestamp is fresh, e.g., < 1 minute old), other clients must wait or poll.
-*   **Release Lock:** Clear the lock cell/property.
+### 1. `GoogleSheetsFetchClient`
 
-### E. Rollback Protocol
-If any migration step fails:
-*   **Backup First:** Duplicate the Drive file (`drive.files.copy`) before executing the migration sequence.
-*   **Restore on Fail:** If an error occurs mid-way, delete the failed sheet and rename the backup sheet back to the original name, ensuring atomic database transitions.
+A lightweight, zero-dependency `fetch`-based wrapper for the Google Sheets and Drive REST APIs.
+
+```typescript
+import { GoogleSheetsFetchClient } from '@qozara/gdocs-schema';
+
+const client = new GoogleSheetsFetchClient({
+  accessToken: 'YOUR_GOOGLE_ACCESS_TOKEN',
+  fetchImpl: globalThis.fetch, // Optional custom fetch implementation
+});
+```
+
+### 2. `SchemaHasher`
+
+Generates a deterministic SHA-256 hash representing the structural definition (tabs and columns) of a spreadsheet schema.
+
+```typescript
+import { computeSchemaHash, SchemaDefinition } from '@qozara/gdocs-schema';
+
+const schema: SchemaDefinition = {
+  version: 1,
+  tabs: [
+    {
+      name: 'Users',
+      columns: [
+        { name: 'id', type: 'string', required: true },
+        { name: 'name', type: 'string' },
+      ],
+    },
+  ],
+};
+
+const hash = await computeSchemaHash(schema);
+console.log(`Schema hash: ${hash}`);
+```
+
+### 3. `SchemaValidator`
+
+Validates that a spreadsheet matches the structural constraints of a schema.
+
+```typescript
+import { SchemaValidator, GoogleSheetsFetchClient } from '@qozara/gdocs-schema';
+
+const client = new GoogleSheetsFetchClient({ accessToken: '...' });
+const validator = new SchemaValidator(client);
+
+const result = await validator.validateStructure('YOUR_SPREADSHEET_ID', schema);
+
+if (result.valid) {
+  console.log('Structure is correct!');
+} else {
+  console.error('Validation errors:', result.errors);
+}
+```
+
+### 4. `MigrationManager`
+
+Orchestrates sequential, atomic schema migrations. Ensures operations are safe via Drive-level concurrency locking and backup/rollback mechanisms.
+
+```typescript
+import { MigrationManager, GoogleSheetsFetchClient, Migration } from '@qozara/gdocs-schema';
+
+const client = new GoogleSheetsFetchClient({ accessToken: '...' });
+const manager = new MigrationManager(client);
+
+const migrations: Migration[] = [
+  {
+    version: 1,
+    up: async (client, spreadsheetId) => {
+      // Add sheet, modify cells, etc.
+      await client.batchUpdate(spreadsheetId, [
+        { addSheet: { properties: { title: 'NewTab' } } }
+      ]);
+    },
+    down: async (client, spreadsheetId) => {
+      // Revert version 1 changes
+    }
+  }
+];
+
+const result = await manager.runMigrations('YOUR_SPREADSHEET_ID', migrations);
+console.log(`Successfully applied: ${result.applied.join(', ')}`);
+```
+
+---
+
+## Writing Migrations
+
+Migrations are stored as programmatic objects containing `version`, an `up` hook, and a `down` hook. Both hooks are passed the `GoogleSheetsFetchClient` and the target `spreadsheetId`.
+
+Example:
+
+```javascript
+// migrations/1_add_roles_column.js
+export const version = 1;
+
+export async function up(client, spreadsheetId) {
+  // Read existing columns to find insert position
+  const meta = await client.getSpreadsheet(spreadsheetId);
+  const usersTab = meta.sheets.find(s => s.properties.title === 'Users');
+  
+  // Send batchUpdate to append column dimension and write header cell
+  await client.batchUpdate(spreadsheetId, [
+    {
+      appendDimension: {
+        sheetId: usersTab.properties.sheetId,
+        dimension: 'COLUMNS',
+        length: 1
+      }
+    },
+    {
+      updateCells: {
+        rows: [{ values: [{ userEnteredValue: { stringValue: 'role' } }] }],
+        fields: 'userEnteredValue',
+        range: {
+          sheetId: usersTab.properties.sheetId,
+          startRowIndex: 0,
+          endRowIndex: 1,
+          startColumnIndex: 2 // Assuming we have 2 columns initially
+        }
+      }
+    }
+  ]);
+}
+
+export async function down(client, spreadsheetId) {
+  // Revert changes if necessary (e.g. deleting the column or sheet)
+}
+```
+
+---
+
+## Command Line Interface (CLI)
+
+The package includes a command-line tool `gdocs-schema`.
+
+Ensure the environment variable `GOOGLE_ACCESS_TOKEN` is set, or pass it via the `--token` option.
+
+### Commands
+
+#### 1. Inspect
+Validates a spreadsheet against a schema and outputs structural information, schema hash, and the current migration version.
+```bash
+npx gdocs-schema inspect <spreadsheetId> --schema <path/to/schema.json>
+```
+
+#### 2. Migrate
+Runs pending migrations located in a migrations directory.
+```bash
+npx gdocs-schema migrate <spreadsheetId> --migrations-dir <path/to/migrations/>
+```
+
+#### 3. Repair
+Appends missing columns to sheets (tabs) present in the spreadsheet to make them match the schema structure.
+```bash
+npx gdocs-schema repair <spreadsheetId> --schema <path/to/schema.json>
+```
