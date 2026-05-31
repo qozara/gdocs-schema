@@ -24,12 +24,12 @@ You can use the following checklist to track progress incrementally.
 - `[x]` Configure ESLint and Prettier for the standalone project.
 
 ### 2. Lightweight Fetch-based Google API Layer
-- `[ ]` Create `GoogleSheetsFetchClient.ts`.
-- `[ ]` Implement methods for standard operations: reading sheet metadata, `batchGet`, `batchUpdate` (for structural changes like `addSheet`, `addDimension`).
-- `[ ]` Implement the Lock mechanism:
+- `[x]` Create `GoogleSheetsFetchClient.ts`.
+- `[x]` Implement methods for standard operations: reading sheet metadata, `batchGet`, `batchUpdate` (for structural changes like `addSheet`, `addDimension`).
+- `[x]` Implement the Lock mechanism:
     - Add `acquireLock(spreadsheetId)` (e.g., writing to a specific cell in `_migrations` or setting a Drive file property).
     - Add `releaseLock(spreadsheetId)`.
-- `[ ]` Implement Backup/Restore hooks:
+- `[x]` Implement Backup/Restore hooks:
     - Add `createBackup(spreadsheetId)` (e.g., using Google Drive API to copy the file).
     - Add `restoreBackup(backupId, spreadsheetId)`.
 
