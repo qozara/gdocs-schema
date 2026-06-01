@@ -23,9 +23,13 @@
   },
   "dependencies": {
     "ajv": "^8.12.0",
-    "commander": "^11.1.0"
+    "commander": "^11.1.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "open": "^11.0.0"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^25.9.1",
     "@vitest/coverage-v8": "^1.6.1",
     "eslint": "^9.13.0",

@@ -13,7 +13,11 @@ npm install @qozara/gdocs-schema
 ```
 
 ### Authentication
-Before using the API or CLI, ensure you have a Google API OAuth2 Access Token. For the CLI, you can expose this via the `GOOGLE_ACCESS_TOKEN` environment variable.
+Before using the API or CLI, ensure you have a Google API OAuth2 Access Token. For the CLI, you can easily log in and automatically resolve the token using the built-in `login` command. Alternatively, you can pass the token via the `--token` flag or the `GOOGLE_ACCESS_TOKEN` environment variable.
+
+For the `login` command to work, you must set the `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` environment variables. These should belong to a "Desktop" OAuth client created in the Google Cloud Console.
+
+You can set these in your shell environment, or create a local `.env` file in the root of your project directory based on the provided `.env.sample` file.
 
 ---
 
@@ -156,23 +160,29 @@ export async function down(client, spreadsheetId) {
 
 The package includes a command-line tool `gdocs-schema`.
 
-Ensure the environment variable `GOOGLE_ACCESS_TOKEN` is set, or pass it via the `--token` option.
+Tokens are automatically resolved from your local credentials if you have used the `login` command. Otherwise, you must pass the token via the `--token` option or the `GOOGLE_ACCESS_TOKEN` environment variable.
 
 ### Commands
 
-#### 1. Inspect
+#### 1. Login
+Authenticates with Google via OAuth2 and securely stores your token locally for use with subsequent commands.
+```bash
+npx gdocs-schema login
+```
+
+#### 2. Inspect
 Validates a spreadsheet against a schema and outputs structural information, schema hash, and the current migration version.
 ```bash
 npx gdocs-schema inspect <spreadsheetId> --schema <path/to/schema.json>
 ```
 
-#### 2. Migrate
+#### 3. Migrate
 Runs pending migrations located in a migrations directory.
 ```bash
 npx gdocs-schema migrate <spreadsheetId> --migrations-dir <path/to/migrations/>
 ```
 
-#### 3. Repair
+#### 4. Repair
 Appends missing columns to sheets (tabs) present in the spreadsheet to make them match the schema structure.
 ```bash
 npx gdocs-schema repair <spreadsheetId> --schema <path/to/schema.json>

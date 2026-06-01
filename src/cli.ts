@@ -1,3 +1,5 @@
+import * as dotenv from 'dotenv';
+dotenv.config();
 import { Command } from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -6,6 +8,24 @@ import { GoogleSheetsFetchClient } from './GoogleSheetsFetchClient.js';
 import { SchemaValidator } from './SchemaValidator.js';
 import { MigrationManager } from './MigrationManager.js';
 import { computeSchemaHash } from './SchemaHasher.js';
+import { login, CREDENTIALS_PATH } from './auth.js';
+
+function getAccessToken(options: any): string | undefined {
+  if (options.token) return options.token;
+  if (process.env.GOOGLE_ACCESS_TOKEN) return process.env.GOOGLE_ACCESS_TOKEN;
+  try {
+    if (fs.existsSync(CREDENTIALS_PATH)) {
+      const creds = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
+      if (creds.access_token) {
+        return creds.access_token;
+      }
+    }
+  } catch (err) {
+    // Ignore read/parse errors
+  }
+  return undefined;
+}
+
 
 export function createProgram(): Command {
   const program = new Command();
@@ -15,15 +35,27 @@ export function createProgram(): Command {
     .version('1.0.0');
 
   program
+    .command('login')
+    .description('Log in to Google Drive via OAuth2')
+    .action(async () => {
+      try {
+        await login();
+      } catch (e: any) {
+        console.error(`Login failed: ${e.message}`);
+        process.exit(1);
+      }
+    });
+
+  program
     .command('inspect <spreadsheetId>')
     .description('Inspect the spreadsheet structure and print metadata')
     .option('-t, --token <token>', 'Google API Access Token')
     .option('-s, --schema <path>', 'Path to schema JSON file')
     .action(async (spreadsheetId, options) => {
-      const token = options.token || process.env.GOOGLE_ACCESS_TOKEN;
+      const token = getAccessToken(options);
       if (!token) {
         console.error(
-          'Error: Google Access Token is required (use --token or GOOGLE_ACCESS_TOKEN env var)'
+          'Error: Google Access Token is required (use "gdocs-schema login", --token or GOOGLE_ACCESS_TOKEN env var)'
         );
         process.exit(1);
       }
@@ -84,9 +116,9 @@ export function createProgram(): Command {
     .option('-t, --token <token>', 'Google API Access Token')
     .option('-m, --migrations-dir <dir>', 'Directory containing migration scripts')
     .action(async (spreadsheetId, options) => {
-      const token = options.token || process.env.GOOGLE_ACCESS_TOKEN;
+      const token = getAccessToken(options);
       if (!token) {
-        console.error('Error: Google Access Token is required');
+        console.error('Error: Google Access Token is required (use "gdocs-schema login", --token or GOOGLE_ACCESS_TOKEN env var)');
         process.exit(1);
       }
       if (!options.migrationsDir) {
@@ -140,9 +172,9 @@ export function createProgram(): Command {
     .option('-t, --token <token>', 'Google API Access Token')
     .option('-s, --schema <path>', 'Path to schema JSON file')
     .action(async (spreadsheetId, options) => {
-      const token = options.token || process.env.GOOGLE_ACCESS_TOKEN;
+      const token = getAccessToken(options);
       if (!token) {
-        console.error('Error: Google Access Token is required');
+        console.error('Error: Google Access Token is required (use "gdocs-schema login", --token or GOOGLE_ACCESS_TOKEN env var)');
         process.exit(1);
       }
       if (!options.schema) {
