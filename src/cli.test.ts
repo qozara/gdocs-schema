@@ -123,4 +123,102 @@ describe('CLI commands', () => {
     );
     expect(consoleLogMock).toHaveBeenCalledWith(expect.stringContaining('Repair complete'));
   });
+
+  it('should print error and help info if inspect is run without token and without schema', async () => {
+    process.env.GOOGLE_ACCESS_TOKEN = '';
+    const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const exitMock = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit');
+    });
+
+    const program = createProgram();
+    await expect(
+      program.parseAsync(['node', 'gdocs-schema', 'inspect', 'spreadsheet-123'])
+    ).rejects.toThrow('exit');
+
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      expect.stringContaining('Google Access Token is required')
+    );
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      expect.stringContaining('A schema file path is also required')
+    );
+
+    exitMock.mockRestore();
+    consoleErrorMock.mockRestore();
+  });
+
+  it('should print starter schema if inspect is run without schema but with token', async () => {
+    const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const exitMock = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit');
+    });
+
+    const mockClientInstance = {
+      getSpreadsheet: vi.fn().mockResolvedValue({
+        sheets: [
+          { properties: { title: 'Users' } },
+          { properties: { title: 'Products' } },
+          { properties: { title: '_migrations' } },
+        ],
+      }),
+      batchGet: vi.fn().mockResolvedValue({
+        valueRanges: [
+          { values: [['id', 'name']] },
+          { values: [['sku', 'price']] },
+          { values: [['version']] },
+        ],
+      }),
+    };
+    vi.mocked(GoogleSheetsFetchClient).mockImplementation(() => mockClientInstance as any);
+
+    const program = createProgram();
+    await expect(
+      program.parseAsync(['node', 'gdocs-schema', 'inspect', 'spreadsheet-123'])
+    ).rejects.toThrow('exit');
+
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      expect.stringContaining('Schema file path is required to validate')
+    );
+    expect(consoleLogMock).toHaveBeenCalledWith(
+      expect.stringContaining('- Tab "Users" with columns: [id, name]')
+    );
+    expect(consoleLogMock).toHaveBeenCalledWith(
+      expect.stringContaining('- Tab "Products" with columns: [sku, price]')
+    );
+    expect(consoleLogMock).toHaveBeenCalledWith(
+      expect.stringContaining('Starter Schema Template:')
+    );
+
+    exitMock.mockRestore();
+    consoleErrorMock.mockRestore();
+  });
+
+  it('should print fetch error if inspect is run without schema, with token, but fetch fails', async () => {
+    const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const exitMock = vi.spyOn(process, 'exit').mockImplementation(() => {
+      throw new Error('exit');
+    });
+
+    const mockClientInstance = {
+      getSpreadsheet: vi.fn().mockRejectedValue(new Error('API quota exceeded')),
+    };
+    vi.mocked(GoogleSheetsFetchClient).mockImplementation(() => mockClientInstance as any);
+
+    const program = createProgram();
+    await expect(
+      program.parseAsync(['node', 'gdocs-schema', 'inspect', 'spreadsheet-123'])
+    ).rejects.toThrow('exit');
+
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      expect.stringContaining('Schema file path is required to validate')
+    );
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Could not fetch spreadsheet structure automatically: API quota exceeded'
+      )
+    );
+
+    exitMock.mockRestore();
+    consoleErrorMock.mockRestore();
+  });
 });

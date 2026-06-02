@@ -1,9 +1,10 @@
+#!/usr/bin/env node
 import * as dotenv from 'dotenv';
 dotenv.config();
 import { Command } from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
-import { pathToFileURL } from 'url';
+import { pathToFileURL, fileURLToPath } from 'url';
 import { GoogleSheetsFetchClient } from './GoogleSheetsFetchClient.js';
 import { SchemaValidator } from './SchemaValidator.js';
 import { MigrationManager } from './MigrationManager.js';
@@ -57,10 +58,93 @@ export function createProgram(): Command {
         console.error(
           'Error: Google Access Token is required (use "gdocs-schema login", --token or GOOGLE_ACCESS_TOKEN env var)'
         );
+        if (!options.schema) {
+          console.error('\nNote: A schema file path is also required (use --schema <path>).');
+          console.error('A schema JSON file defines the expected sheet tabs and columns. Example:');
+          console.error(JSON.stringify({
+            version: 1,
+            tabs: [
+              {
+                name: 'SheetName',
+                columns: [
+                  { name: 'column_name', type: 'string' }
+                ]
+              }
+            ]
+          }, null, 2));
+        }
         process.exit(1);
       }
       if (!options.schema) {
-        console.error('Error: Schema file path is required (use --schema)');
+        console.error('Error: Schema file path is required to validate the spreadsheet structure.');
+        console.log('\nTo validate this spreadsheet, you must provide a schema using the --schema option:');
+        console.log(`  npx gdocs-schema inspect ${spreadsheetId} --schema <path-to-schema.json>`);
+        console.log('\nA schema JSON file defines the expected sheet tabs and columns. Example:');
+        console.log(JSON.stringify({
+          version: 1,
+          tabs: [
+            {
+              name: 'Users',
+              columns: [
+                { name: 'id', type: 'string' },
+                { name: 'name', type: 'string' }
+              ]
+            }
+          ]
+        }, null, 2));
+
+        console.log('\n--- Attempting to inspect the spreadsheet structure and generate a starter schema... ---');
+        
+        try {
+          const client = new GoogleSheetsFetchClient({ accessToken: token });
+          const metadata = await client.getSpreadsheet(spreadsheetId);
+          const sheets = metadata.sheets || [];
+          const tabs: any[] = [];
+
+          if (sheets.length > 0) {
+            const sheetNames = sheets.map((s: any) => s.properties?.title).filter(Boolean);
+            const ranges = sheetNames.map((name: string) => `${name}!1:1`);
+            const batchGetResult = await client.batchGet(spreadsheetId, ranges);
+            const valueRanges = batchGetResult.valueRanges || [];
+
+            for (let i = 0; i < sheetNames.length; i++) {
+              const tabName = sheetNames[i];
+              if (tabName === '_migrations') continue;
+
+              const valueRange = valueRanges[i];
+              const rows = valueRange?.values || [];
+              const headers = rows[0] || [];
+              
+              tabs.push({
+                name: tabName,
+                columns: headers.map((h: any) => ({
+                  name: String(h).trim(),
+                  type: 'string'
+                }))
+              });
+            }
+          }
+
+          const starterSchema = {
+            version: 1,
+            tabs
+          };
+
+          console.log('\nDiscovered Spreadsheet Structure:');
+          if (tabs.length === 0) {
+            console.log('No data sheets found (excluding internal tracking sheets).');
+          } else {
+            tabs.forEach(tab => {
+              const cols = tab.columns.map((c: any) => c.name).join(', ') || '(no columns)';
+              console.log(`- Tab "${tab.name}" with columns: [${cols}]`);
+            });
+          }
+
+          console.log('\nStarter Schema Template:');
+          console.log(JSON.stringify(starterSchema, null, 2));
+        } catch (err: any) {
+          console.error(`\nCould not fetch spreadsheet structure automatically: ${err.message}`);
+        }
         process.exit(1);
       }
 
@@ -295,11 +379,17 @@ export function createProgram(): Command {
 // Self-run wrapper when invoked directly
 const argv1 = process.argv[1];
 if (argv1) {
-  const isMain =
-    import.meta.url === pathToFileURL(argv1).href ||
-    argv1.endsWith('dist/cli.js') ||
-    argv1.endsWith('bin/gdocs-schema.js') ||
-    path.basename(argv1) === 'cli.ts';
+  let isMain = false;
+  try {
+    isMain = fs.realpathSync(argv1) === fileURLToPath(import.meta.url);
+  } catch {
+    isMain =
+      import.meta.url === pathToFileURL(argv1).href ||
+      argv1.endsWith('dist/cli.js') ||
+      argv1.endsWith('bin/gdocs-schema') ||
+      argv1.endsWith('bin/gdocs-schema.js') ||
+      path.basename(argv1) === 'cli.ts';
+  }
 
   if (isMain) {
     const program = createProgram();
