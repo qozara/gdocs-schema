@@ -147,29 +147,11 @@ describe('CLI commands', () => {
     consoleErrorMock.mockRestore();
   });
 
-  it('should print starter schema if inspect is run without schema but with token', async () => {
+  it('should print init suggestion if inspect is run without schema but with token', async () => {
     const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
     const exitMock = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('exit');
     });
-
-    const mockClientInstance = {
-      getSpreadsheet: vi.fn().mockResolvedValue({
-        sheets: [
-          { properties: { title: 'Users' } },
-          { properties: { title: 'Products' } },
-          { properties: { title: '_migrations' } },
-        ],
-      }),
-      batchGet: vi.fn().mockResolvedValue({
-        valueRanges: [
-          { values: [['id', 'name']] },
-          { values: [['sku', 'price']] },
-          { values: [['version']] },
-        ],
-      }),
-    };
-    vi.mocked(GoogleSheetsFetchClient).mockImplementation(() => mockClientInstance as any);
 
     const program = createProgram();
     await expect(
@@ -180,45 +162,76 @@ describe('CLI commands', () => {
       expect.stringContaining('Schema file path is required to validate')
     );
     expect(consoleLogMock).toHaveBeenCalledWith(
-      expect.stringContaining('- Tab "Users" with columns: [id, name]')
+      expect.stringContaining('If you do not have a schema yet, you can initialize one by running:')
     );
     expect(consoleLogMock).toHaveBeenCalledWith(
-      expect.stringContaining('- Tab "Products" with columns: [sku, price]')
-    );
-    expect(consoleLogMock).toHaveBeenCalledWith(
-      expect.stringContaining('Starter Schema Template:')
+      expect.stringContaining('npx gdocs-schema init spreadsheet-123')
     );
 
     exitMock.mockRestore();
     consoleErrorMock.mockRestore();
   });
 
-  it('should print fetch error if inspect is run without schema, with token, but fetch fails', async () => {
-    const consoleErrorMock = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const exitMock = vi.spyOn(process, 'exit').mockImplementation(() => {
-      throw new Error('exit');
-    });
-
+  it('should initialize schema and metadata if init is run', async () => {
     const mockClientInstance = {
-      getSpreadsheet: vi.fn().mockRejectedValue(new Error('API quota exceeded')),
+      getSpreadsheet: vi.fn().mockResolvedValue({
+        properties: { title: 'My Spreadsheet' },
+        sheets: [
+          { properties: { title: 'Users' } },
+        ],
+      }),
+      getFileAppProperties: vi.fn().mockResolvedValue({
+        etag: 'etag123',
+        appProperties: {},
+      }),
+      batchGet: vi.fn().mockResolvedValue({
+        valueRanges: [
+          { values: [['id', 'name']] },
+        ],
+      }),
+      batchUpdate: vi.fn().mockResolvedValue({
+        replies: [{ addSheet: { properties: { sheetId: 102 } } }],
+      }),
+      updateFileAppProperties: vi.fn().mockResolvedValue({}),
     };
     vi.mocked(GoogleSheetsFetchClient).mockImplementation(() => mockClientInstance as any);
 
+    const writeFileSyncMock = vi.spyOn(fs, 'writeFileSync').mockImplementation(() => {});
+
     const program = createProgram();
-    await expect(
-      program.parseAsync(['node', 'gdocs-schema', 'inspect', 'spreadsheet-123'])
-    ).rejects.toThrow('exit');
+    await program.parseAsync(['node', 'gdocs-schema', 'init', 'spreadsheet-123']);
 
-    expect(consoleErrorMock).toHaveBeenCalledWith(
-      expect.stringContaining('Schema file path is required to validate')
+    // Check schema written
+    expect(writeFileSyncMock).toHaveBeenCalledWith(
+      expect.stringContaining('my-spreadsheet-schema.json'),
+      expect.stringContaining('"tabs"'),
+      'utf8'
     );
-    expect(consoleErrorMock).toHaveBeenCalledWith(
-      expect.stringContaining(
-        'Could not fetch spreadsheet structure automatically: API quota exceeded'
-      )
+    expect(writeFileSyncMock.mock.calls[0][1]).toContain('"name": "Users"');
+    expect(writeFileSyncMock.mock.calls[0][1]).toContain('"name": "id"');
+    expect(writeFileSyncMock.mock.calls[0][1]).toContain('"name": "name"');
+
+    // Check _migrations tab initialized
+    expect(mockClientInstance.batchUpdate).toHaveBeenCalledWith(
+      'spreadsheet-123',
+      expect.arrayContaining([
+        expect.objectContaining({ addSheet: expect.objectContaining({ properties: expect.objectContaining({ title: '_migrations' }) }) })
+      ])
+    );
+    expect(mockClientInstance.batchUpdate).toHaveBeenCalledWith(
+      'spreadsheet-123',
+      expect.arrayContaining([
+        expect.objectContaining({ updateCells: expect.objectContaining({ range: expect.objectContaining({ sheetId: 102 }) }) })
+      ])
     );
 
-    exitMock.mockRestore();
-    consoleErrorMock.mockRestore();
+    // Check appProperties updated
+    expect(mockClientInstance.updateFileAppProperties).toHaveBeenCalledWith(
+      'spreadsheet-123',
+      { schema_managed: 'true' },
+      'etag123'
+    );
+
+    writeFileSyncMock.mockRestore();
   });
 });

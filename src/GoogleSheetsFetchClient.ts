@@ -215,6 +215,35 @@ export class GoogleSheetsFetchClient {
     await this.batchUpdate(spreadsheetId, requests);
   }
 
+  async getFileAppProperties(spreadsheetId: string): Promise<{ etag: string; appProperties: Record<string, string> }> {
+    const fileUrl = `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=etag,appProperties`;
+    const metadata = await this.request(fileUrl);
+    return {
+      etag: metadata.etag,
+      appProperties: metadata.appProperties || {},
+    };
+  }
+
+  async updateFileAppProperties(
+    spreadsheetId: string,
+    properties: Record<string, string | null>,
+    etag?: string
+  ): Promise<void> {
+    const fileUrl = `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=etag,appProperties`;
+    const headers: Record<string, string> = {};
+    if (etag) {
+      headers['If-Match'] = etag;
+    }
+
+    await this.request(fileUrl, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({
+        appProperties: properties,
+      }),
+    });
+  }
+
   async deleteFile(fileId: string): Promise<void> {
     const deleteUrl = `https://www.googleapis.com/drive/v3/files/${fileId}`;
     await this.request(deleteUrl, {

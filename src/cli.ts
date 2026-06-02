@@ -48,6 +48,132 @@ export function createProgram(): Command {
     });
 
   program
+    .command('init <spreadsheetId>')
+    .description('Initialize a schema for the spreadsheet')
+    .option('-t, --token <token>', 'Google API Access Token')
+    .option('-s, --schema <path>', 'Path to schema JSON file to create')
+    .action(async (spreadsheetId, options) => {
+      const token = getAccessToken(options);
+      if (!token) {
+        console.error('Error: Google Access Token is required (use "gdocs-schema login", --token or GOOGLE_ACCESS_TOKEN env var)');
+        process.exit(1);
+      }
+
+      const client = new GoogleSheetsFetchClient({ accessToken: token });
+
+      try {
+        const metadata = await client.getSpreadsheet(spreadsheetId);
+        const { etag, appProperties } = await client.getFileAppProperties(spreadsheetId);
+
+        const sheets = metadata.sheets || [];
+        const hasMigrationsTab = sheets.some((s: any) => s.properties?.title === '_migrations');
+        const isSchemaManaged = appProperties.schema_managed === 'true';
+
+        if (hasMigrationsTab || isSchemaManaged) {
+          console.log('Notice: This spreadsheet already appears to be managed by a schema.');
+          console.log('A new schema will be inferred based on the current spreadsheet structure.\n');
+        }
+
+        console.log('--- Inspecting the spreadsheet structure and generating schema... ---');
+
+        const tabs: any[] = [];
+        if (sheets.length > 0) {
+          const sheetNames = sheets.map((s: any) => s.properties?.title).filter(Boolean);
+          const ranges = sheetNames.map((name: string) => `${name}!1:1`);
+          const batchGetResult = await client.batchGet(spreadsheetId, ranges);
+          const valueRanges = batchGetResult.valueRanges || [];
+
+          for (let i = 0; i < sheetNames.length; i++) {
+            const tabName = sheetNames[i];
+            if (tabName === '_migrations') continue;
+
+            const valueRange = valueRanges[i];
+            const rows = valueRange?.values || [];
+            const headers = rows[0] || [];
+
+            tabs.push({
+              name: tabName,
+              columns: headers.map((h: any) => ({
+                name: String(h).trim(),
+                type: 'string'
+              }))
+            });
+          }
+        }
+
+        const starterSchema = {
+          version: 1,
+          tabs
+        };
+
+        let schemaPath = options.schema;
+        if (!schemaPath) {
+          const title = metadata.properties?.title || 'spreadsheet';
+          const safeTitle = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+          schemaPath = `${safeTitle}-schema.json`;
+        }
+
+        schemaPath = path.resolve(schemaPath);
+        fs.writeFileSync(schemaPath, JSON.stringify(starterSchema, null, 2), 'utf8');
+        console.log(`Schema successfully written to ${schemaPath}`);
+
+        // Write metadata if not already present
+        if (!hasMigrationsTab) {
+          console.log('Initializing _migrations tab...');
+          const addResult = await client.batchUpdate(spreadsheetId, [
+            {
+              addSheet: {
+                properties: {
+                  title: '_migrations',
+                  hidden: true,
+                },
+              },
+            },
+          ]);
+
+          const migrationsSheetId = addResult.replies[0].addSheet.properties.sheetId;
+
+          await client.batchUpdate(spreadsheetId, [
+            {
+              updateCells: {
+                rows: [
+                  {
+                    values: [
+                      { userEnteredValue: { stringValue: 'version' } },
+                      { userEnteredValue: { stringValue: 'migrated_at' } },
+                    ],
+                  },
+                  {
+                    values: [
+                      { userEnteredValue: { numberValue: 0 } },
+                      { userEnteredValue: { stringValue: new Date().toISOString() } },
+                    ],
+                  },
+                ],
+                fields: 'userEnteredValue',
+                range: {
+                  sheetId: migrationsSheetId,
+                  startRowIndex: 0,
+                  startColumnIndex: 0,
+                },
+              },
+            },
+          ]);
+        }
+
+        if (!isSchemaManaged) {
+          console.log('Setting schema_managed metadata...');
+          await client.updateFileAppProperties(spreadsheetId, { schema_managed: 'true' }, etag);
+        }
+
+        console.log('Initialization complete.');
+      } catch (err: any) {
+        console.error(`\nCould not initialize schema: ${err.message}`);
+        process.exit(1);
+      }
+    });
+
+  program
     .command('inspect <spreadsheetId>')
     .description('Inspect the spreadsheet structure and print metadata')
     .option('-t, --token <token>', 'Google API Access Token')
@@ -79,72 +205,8 @@ export function createProgram(): Command {
         console.error('Error: Schema file path is required to validate the spreadsheet structure.');
         console.log('\nTo validate this spreadsheet, you must provide a schema using the --schema option:');
         console.log(`  npx gdocs-schema inspect ${spreadsheetId} --schema <path-to-schema.json>`);
-        console.log('\nA schema JSON file defines the expected sheet tabs and columns. Example:');
-        console.log(JSON.stringify({
-          version: 1,
-          tabs: [
-            {
-              name: 'Users',
-              columns: [
-                { name: 'id', type: 'string' },
-                { name: 'name', type: 'string' }
-              ]
-            }
-          ]
-        }, null, 2));
-
-        console.log('\n--- Attempting to inspect the spreadsheet structure and generate a starter schema... ---');
-        
-        try {
-          const client = new GoogleSheetsFetchClient({ accessToken: token });
-          const metadata = await client.getSpreadsheet(spreadsheetId);
-          const sheets = metadata.sheets || [];
-          const tabs: any[] = [];
-
-          if (sheets.length > 0) {
-            const sheetNames = sheets.map((s: any) => s.properties?.title).filter(Boolean);
-            const ranges = sheetNames.map((name: string) => `${name}!1:1`);
-            const batchGetResult = await client.batchGet(spreadsheetId, ranges);
-            const valueRanges = batchGetResult.valueRanges || [];
-
-            for (let i = 0; i < sheetNames.length; i++) {
-              const tabName = sheetNames[i];
-              if (tabName === '_migrations') continue;
-
-              const valueRange = valueRanges[i];
-              const rows = valueRange?.values || [];
-              const headers = rows[0] || [];
-              
-              tabs.push({
-                name: tabName,
-                columns: headers.map((h: any) => ({
-                  name: String(h).trim(),
-                  type: 'string'
-                }))
-              });
-            }
-          }
-
-          const starterSchema = {
-            version: 1,
-            tabs
-          };
-
-          console.log('\nDiscovered Spreadsheet Structure:');
-          if (tabs.length === 0) {
-            console.log('No data sheets found (excluding internal tracking sheets).');
-          } else {
-            tabs.forEach(tab => {
-              const cols = tab.columns.map((c: any) => c.name).join(', ') || '(no columns)';
-              console.log(`- Tab "${tab.name}" with columns: [${cols}]`);
-            });
-          }
-
-          console.log('\nStarter Schema Template:');
-          console.log(JSON.stringify(starterSchema, null, 2));
-        } catch (err: any) {
-          console.error(`\nCould not fetch spreadsheet structure automatically: ${err.message}`);
-        }
+        console.log('\nIf you do not have a schema yet, you can initialize one by running:');
+        console.log(`  npx gdocs-schema init ${spreadsheetId}`);
         process.exit(1);
       }
 

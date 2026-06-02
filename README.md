@@ -170,19 +170,25 @@ Authenticates with Google via OAuth2 and securely stores your token locally for 
 npx gdocs-schema login
 ```
 
-#### 2. Inspect
-Validates a spreadsheet against a schema and outputs structural information, schema hash, and the current migration version.
+#### 2. Init
+Initializes a new schema for a spreadsheet. Infers the schema structure based on existing tabs and columns, writes it to a JSON file, and initializes the spreadsheet metadata (creates the `_migrations` tab and marks the file as schema-managed).
+```bash
+npx gdocs-schema init <spreadsheetId> [--schema <path/to/schema.json>]
+```
+
+#### 3. Inspect
+Validates a spreadsheet against a schema and outputs structural information, schema hash, and the current migration version. If no schema is provided, it will suggest using the `init` command.
 ```bash
 npx gdocs-schema inspect <spreadsheetId> --schema <path/to/schema.json>
 ```
 
-#### 3. Migrate
+#### 4. Migrate
 Runs pending migrations located in a migrations directory.
 ```bash
 npx gdocs-schema migrate <spreadsheetId> --migrations-dir <path/to/migrations/>
 ```
 
-#### 4. Repair
+#### 5. Repair
 Appends missing columns to sheets (tabs) present in the spreadsheet to make them match the schema structure.
 ```bash
 npx gdocs-schema repair <spreadsheetId> --schema <path/to/schema.json>
