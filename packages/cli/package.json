@@ -1,0 +1,19 @@
+{
+  "name": "@qozara/gdocs-schema-cli",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": {
+    "gdocs-schema": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsup src/cli.ts --format esm --dts",
+    "dev": "tsup src/cli.ts --format esm --watch --dts"
+  },
+  "dependencies": {
+    "@qozara/gdocs-schema": "^1.0.0",
+    "commander": "^11.1.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "open": "^11.0.0"
+  }
+}

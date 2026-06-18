@@ -1,15 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createProgram } from './cli.js';
 import * as fs from 'fs';
-import { SchemaValidator } from './SchemaValidator.js';
-import { GoogleSheetsFetchClient } from './GoogleSheetsFetchClient.js';
-import { computeSchemaHash } from './SchemaHasher.js';
+import { SchemaValidator, GoogleSheetsFetchClient, computeSchemaHash } from '@qozara/gdocs-schema';
 
 vi.mock('fs');
-vi.mock('./SchemaValidator.js');
-vi.mock('./MigrationManager.js');
-vi.mock('./GoogleSheetsFetchClient.js');
-vi.mock('./SchemaHasher.js');
+vi.mock('@qozara/gdocs-schema');
 
 describe('CLI commands', () => {
   let consoleLogMock: any;

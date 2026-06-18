@@ -5,10 +5,12 @@ import { Command } from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
 import { pathToFileURL, fileURLToPath } from 'url';
-import { GoogleSheetsFetchClient } from './GoogleSheetsFetchClient.js';
-import { SchemaValidator } from './SchemaValidator.js';
-import { MigrationManager } from './MigrationManager.js';
-import { computeSchemaHash } from './SchemaHasher.js';
+import {
+  GoogleSheetsFetchClient,
+  SchemaValidator,
+  MigrationManager,
+  computeSchemaHash
+} from '@qozara/gdocs-schema';
 import { login, CREDENTIALS_PATH } from './auth.js';
 
 function getAccessToken(options: any): string | undefined {
@@ -21,7 +23,7 @@ function getAccessToken(options: any): string | undefined {
         return creds.access_token;
       }
     }
-  } catch (err) {
+  } catch {
     // Ignore read/parse errors
   }
   return undefined;
@@ -223,7 +225,7 @@ export function createProgram(): Command {
       console.log(`- Structure is ${result.valid ? 'VALID' : 'INVALID'}`);
       if (result.errors.length > 0) {
         console.log('Errors:');
-        result.errors.forEach(e => console.log(`  - ${e}`));
+        result.errors.forEach((e: string) => console.log(`  - ${e}`));
       }
       console.log(`- Schema Hash: ${hash}`);
 

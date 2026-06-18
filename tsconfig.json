@@ -10,7 +10,10 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "outDir": "./dist",
-    "declaration": true
+    "declaration": true,
+    "paths": {
+      "@qozara/gdocs-schema": ["./packages/core/src/index.ts"]
+    }
   },
-  "include": ["src/**/*"]
+  "include": ["packages/*/src/**/*"]
 }

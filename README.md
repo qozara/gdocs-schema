@@ -8,8 +8,14 @@ A standalone Node.js package designed to handle client-side schema validation, s
 
 ### Installation
 
+For the core library (e.g., in your web, Node.js, or Google Apps Script apps):
 ```bash
 npm install @qozara/gdocs-schema
+```
+
+For the command-line interface:
+```bash
+npm install -g @qozara/gdocs-schema-cli
 ```
 
 ### Authentication
@@ -56,8 +62,15 @@ const schema: SchemaDefinition = {
   ],
 };
 
+// In Node.js or Browser environments (uses natively available Web Crypto API):
 const hash = await computeSchemaHash(schema);
 console.log(`Schema hash: ${hash}`);
+
+// In Google Apps Script (where Web Crypto is unavailable), you can provide a custom hasher:
+const gasHash = await computeSchemaHash(schema, async (data) => {
+  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, data);
+  return digest.map(b => (b < 0 ? b + 256 : b).toString(16).padStart(2, '0')).join('');
+});
 ```
 
 ### 3. `SchemaValidator`
@@ -158,7 +171,7 @@ export async function down(client, spreadsheetId) {
 
 ## Command Line Interface (CLI)
 
-The package includes a command-line tool `gdocs-schema`.
+The CLI tool is published as a separate package: `@qozara/gdocs-schema-cli`.
 
 Tokens are automatically resolved from your local credentials if you have used the `login` command. Otherwise, you must pass the token via the `--token` option or the `GOOGLE_ACCESS_TOKEN` environment variable.
 
@@ -167,29 +180,29 @@ Tokens are automatically resolved from your local credentials if you have used t
 #### 1. Login
 Authenticates with Google via OAuth2 and securely stores your token locally for use with subsequent commands.
 ```bash
-npx gdocs-schema login
+npx @qozara/gdocs-schema-cli login
 ```
 
 #### 2. Init
 Initializes a new schema for a spreadsheet. Infers the schema structure based on existing tabs and columns, writes it to a JSON file, and initializes the spreadsheet metadata (creates the `_migrations` tab and marks the file as schema-managed).
 ```bash
-npx gdocs-schema init <spreadsheetId> [--schema <path/to/schema.json>]
+npx @qozara/gdocs-schema-cli init <spreadsheetId> [--schema <path/to/schema.json>]
 ```
 
 #### 3. Inspect
 Validates a spreadsheet against a schema and outputs structural information, schema hash, and the current migration version. If no schema is provided, it will suggest using the `init` command.
 ```bash
-npx gdocs-schema inspect <spreadsheetId> --schema <path/to/schema.json>
+npx @qozara/gdocs-schema-cli inspect <spreadsheetId> --schema <path/to/schema.json>
 ```
 
 #### 4. Migrate
 Runs pending migrations located in a migrations directory.
 ```bash
-npx gdocs-schema migrate <spreadsheetId> --migrations-dir <path/to/migrations/>
+npx @qozara/gdocs-schema-cli migrate <spreadsheetId> --migrations-dir <path/to/migrations/>
 ```
 
 #### 5. Repair
 Appends missing columns to sheets (tabs) present in the spreadsheet to make them match the schema structure.
 ```bash
-npx gdocs-schema repair <spreadsheetId> --schema <path/to/schema.json>
+npx @qozara/gdocs-schema-cli repair <spreadsheetId> --schema <path/to/schema.json>
 ```

@@ -1,6 +1,6 @@
 import { SchemaDefinition } from './types.js';
 
-export async function computeSchemaHash(schema: SchemaDefinition): Promise<string> {
+export async function computeSchemaHash(schema: SchemaDefinition, customHasher?: (data: string) => Promise<string>): Promise<string> {
   // Map schema to a canonical sorted structure so hashing is deterministic
   const canonical = schema.tabs.map(tab => ({
     name: tab.name,
@@ -12,6 +12,11 @@ export async function computeSchemaHash(schema: SchemaDefinition): Promise<strin
   }));
 
   const dataStr = JSON.stringify(canonical);
+
+  if (customHasher) {
+    return customHasher(dataStr);
+  }
+
   const encoder = new TextEncoder();
   const data = encoder.encode(dataStr);
 
