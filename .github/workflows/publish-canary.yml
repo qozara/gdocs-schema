@@ -30,7 +30,7 @@ jobs:
           npm run build --workspace=@qozara/gdocs-schema
           npm run build --workspace=@qozara/gdocs-schema-cli
 
-      - name: Bumping Dev Version & Pushing Canary Branch
+      - name: Bumping Dev Version & Pushing to Main
         run: |
           VERSION="1.0.2-dev.${{ github.run_number }}"
           
@@ -45,13 +45,11 @@ jobs:
           npm pkg set dependencies.@qozara/gdocs-schema="$VERSION"
           cd ../../
 
-          # Commit to a detached branch to satisfy Trusted Publishing provenance
-          # without polluting the main branch git history
+          # Commit directly to main to satisfy Trusted Publishing provenance
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git checkout -b canary
-          git commit -am "chore: release canary $VERSION"
-          git push -f origin canary
+          git commit -am "chore: release canary $VERSION [skip ci]"
+          git push origin HEAD:main
 
       - name: Publish Core Package
         run: |
