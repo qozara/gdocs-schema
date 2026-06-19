@@ -1,12 +1,12 @@
 {
   "name": "@qozara/gdocs-schema-cli",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publishConfig": {
     "access": "public"
   },
   "type": "module",
   "bin": {
-    "gdocs-schema": "./dist/cli.js"
+    "gdocs-schema": "dist/cli.js"
   },
   "scripts": {
     "build": "tsup src/cli.ts --format esm --dts",
