@@ -1,0 +1,55 @@
+name: Publish to NPM
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for Trusted Publishing
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
+      - name: Build packages
+        run: |
+          npm run build --workspace=@qozara/gdocs-schema
+          npm run build --workspace=@qozara/gdocs-schema-cli
+
+      - name: Publish Core Package
+        run: |
+          cd packages/core
+          LOCAL_VERSION=$(node -p "require('./package.json').version")
+          PUBLISHED=$(npm view @qozara/gdocs-schema@$LOCAL_VERSION version 2>/dev/null || echo "")
+          if [ -z "$PUBLISHED" ]; then
+            echo "Publishing @qozara/gdocs-schema@$LOCAL_VERSION..."
+            npm publish --provenance --access public
+          else
+            echo "Version $LOCAL_VERSION is already published. Skipping."
+          fi
+
+      - name: Publish CLI Package
+        run: |
+          cd packages/cli
+          LOCAL_VERSION=$(node -p "require('./package.json').version")
+          PUBLISHED=$(npm view @qozara/gdocs-schema-cli@$LOCAL_VERSION version 2>/dev/null || echo "")
+          if [ -z "$PUBLISHED" ]; then
+            echo "Publishing @qozara/gdocs-schema-cli@$LOCAL_VERSION..."
+            npm publish --provenance --access public
+          else
+            echo "Version $LOCAL_VERSION is already published. Skipping."
+          fi
