@@ -30,7 +30,7 @@ jobs:
 
       - name: Bumping Dev Version
         run: |
-          VERSION="1.0.1-dev.${{ github.run_number }}-${{ github.sha }}"
+          VERSION="1.0.2-dev.${{ github.run_number }}-${{ github.sha }}"
           
           # Update version in the core package
           cd packages/core
