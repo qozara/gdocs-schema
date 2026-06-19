@@ -1,6 +1,6 @@
 {
   "name": "@qozara/gdocs-schema",
-  "version": "1.0.2-dev.8",
+  "version": "1.0.2",
   "files": [
     "dist"
   ],

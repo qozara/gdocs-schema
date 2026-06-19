@@ -1,6 +1,6 @@
 {
   "name": "@qozara/gdocs-schema-cli",
-  "version": "1.0.2-dev.8",
+  "version": "1.0.2",
   "files": [
     "dist"
   ],
@@ -21,7 +21,7 @@
     "dev": "tsup src/cli.ts --format esm --watch --dts"
   },
   "dependencies": {
-    "@qozara/gdocs-schema": "1.0.2-dev.8",
+    "@qozara/gdocs-schema": "1.0.2",
     "commander": "^11.1.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",

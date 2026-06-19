@@ -24,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Upgrade npm
+        run: npm install -g npm@latest
+
       - name: Build packages
         run: |
           npm run build --workspace=@qozara/gdocs-schema
@@ -41,7 +44,7 @@ jobs:
           # Update version in the CLI package
           cd packages/cli
           npm version $VERSION --no-git-tag-version
-          npm pkg set dependencies.@qozara/gdocs-schema="$VERSION"
+          sed -i "s/\"@qozara\/gdocs-schema\": \".*\"/\"@qozara\/gdocs-schema\": \"$VERSION\"/g" package.json
           cd ../../
 
           # Commit directly to main to satisfy Trusted Publishing provenance
