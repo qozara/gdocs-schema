@@ -202,7 +202,7 @@ describe('GoogleSheetsFetchClient', () => {
       expect(success).toBe(true);
 
       const patchCall = mockFetch.mock.calls[1];
-      expect(patchCall[0]).toBe(`https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=etag,appProperties`);
+      expect(patchCall[0]).toBe(`https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=appProperties`);
       expect(patchCall[1].method).toBe('PATCH');
       expect(JSON.parse(patchCall[1].body).appProperties.migration_lock).toBeNull();
     });

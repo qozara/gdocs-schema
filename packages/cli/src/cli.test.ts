@@ -28,7 +28,7 @@ describe('CLI commands', () => {
     const mockValidatorInstance = {
       validateStructure: vi.fn().mockResolvedValue({ valid: true, errors: [] }),
     };
-    vi.mocked(SchemaValidator).mockImplementation(() => mockValidatorInstance as any);
+    vi.mocked(SchemaValidator).mockImplementation(function() { return mockValidatorInstance; } as any);
 
     const mockClientInstance = {
       getSpreadsheet: vi.fn().mockResolvedValue({
@@ -38,7 +38,7 @@ describe('CLI commands', () => {
         valueRanges: [{ values: [['version'], ['3']] }],
       }),
     };
-    vi.mocked(GoogleSheetsFetchClient).mockImplementation(() => mockClientInstance as any);
+    vi.mocked(GoogleSheetsFetchClient).mockImplementation(function() { return mockClientInstance; } as any);
 
     const program = createProgram();
     await program.parseAsync([
@@ -73,7 +73,7 @@ describe('CLI commands', () => {
         errors: ['Tab "Users" is missing column "email"'],
       }),
     };
-    vi.mocked(SchemaValidator).mockImplementation(() => mockValidatorInstance as any);
+    vi.mocked(SchemaValidator).mockImplementation(function() { return mockValidatorInstance; } as any);
 
     const mockClientInstance = {
       getSpreadsheet: vi.fn().mockResolvedValue({
@@ -84,7 +84,7 @@ describe('CLI commands', () => {
       }),
       batchUpdate: vi.fn().mockResolvedValue({}),
     };
-    vi.mocked(GoogleSheetsFetchClient).mockImplementation(() => mockClientInstance as any);
+    vi.mocked(GoogleSheetsFetchClient).mockImplementation(function() { return mockClientInstance; } as any);
 
     const program = createProgram();
     await program.parseAsync([
@@ -189,7 +189,7 @@ describe('CLI commands', () => {
       }),
       updateFileAppProperties: vi.fn().mockResolvedValue({}),
     };
-    vi.mocked(GoogleSheetsFetchClient).mockImplementation(() => mockClientInstance as any);
+    vi.mocked(GoogleSheetsFetchClient).mockImplementation(function() { return mockClientInstance; } as any);
 
     const writeFileSyncMock = vi.spyOn(fs, 'writeFileSync').mockImplementation(() => {});
 

@@ -102,8 +102,10 @@ export class GoogleSheetsFetchClient {
       acquiredAt: Date.now(),
     };
 
+    const patchUrl = `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=appProperties`;
+
     try {
-      await this.request(fileUrl, {
+      await this.request(patchUrl, {
         method: 'PATCH',
         headers: {
           'If-Match': metadata.etag,
@@ -144,7 +146,9 @@ export class GoogleSheetsFetchClient {
       // If invalid JSON, we still allow clearing it
     }
 
-    await this.request(fileUrl, {
+    const patchUrl = `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=appProperties`;
+
+    await this.request(patchUrl, {
       method: 'PATCH',
       headers: {
         'If-Match': metadata.etag,
@@ -229,7 +233,7 @@ export class GoogleSheetsFetchClient {
     properties: Record<string, string | null>,
     etag?: string
   ): Promise<void> {
-    const fileUrl = `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=etag,appProperties`;
+    const fileUrl = `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=appProperties`;
     const headers: Record<string, string> = {};
     if (etag) {
       headers['If-Match'] = etag;
