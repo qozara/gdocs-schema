@@ -176,7 +176,6 @@ describe('CLI commands', () => {
         ],
       }),
       getFileAppProperties: vi.fn().mockResolvedValue({
-        etag: 'etag123',
         appProperties: {},
       }),
       batchGet: vi.fn().mockResolvedValue({
@@ -223,8 +222,7 @@ describe('CLI commands', () => {
     // Check appProperties updated
     expect(mockClientInstance.updateFileAppProperties).toHaveBeenCalledWith(
       'spreadsheet-123',
-      { schema_managed: 'true' },
-      'etag123'
+      { schema_managed: 'true' }
     );
 
     writeFileSyncMock.mockRestore();

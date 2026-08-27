@@ -65,7 +65,7 @@ export function createProgram(): Command {
 
       try {
         const metadata = await client.getSpreadsheet(spreadsheetId);
-        const { etag, appProperties } = await client.getFileAppProperties(spreadsheetId);
+        const { appProperties } = await client.getFileAppProperties(spreadsheetId);
 
         const sheets = metadata.sheets || [];
         const hasMigrationsTab = sheets.some((s: any) => s.properties?.title === '_migrations');
@@ -165,7 +165,7 @@ export function createProgram(): Command {
 
         if (!isSchemaManaged) {
           console.log('Setting schema_managed metadata...');
-          await client.updateFileAppProperties(spreadsheetId, { schema_managed: 'true' }, etag);
+          await client.updateFileAppProperties(spreadsheetId, { schema_managed: 'true' });
         }
 
         console.log('Initialization complete.');

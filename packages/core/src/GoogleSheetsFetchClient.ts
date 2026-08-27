@@ -70,8 +70,8 @@ export class GoogleSheetsFetchClient {
     clientUuid: string,
     ttlMs: number = 3 * 60 * 1000 // default 3 minutes TTL
   ): Promise<boolean> {
-    // 1. Fetch current etag and appProperties from Drive API
-    const fileUrl = `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=etag,appProperties`;
+    // 1. Fetch current appProperties from Drive API
+    const fileUrl = `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=appProperties`;
     const metadata = await this.request(fileUrl);
 
     const appProperties = metadata.appProperties || {};
@@ -107,9 +107,6 @@ export class GoogleSheetsFetchClient {
     try {
       await this.request(patchUrl, {
         method: 'PATCH',
-        headers: {
-          'If-Match': metadata.etag,
-        },
         body: JSON.stringify({
           appProperties: {
             migration_lock: JSON.stringify(newLock),
@@ -127,7 +124,7 @@ export class GoogleSheetsFetchClient {
   }
 
   async releaseLock(spreadsheetId: string, clientUuid: string): Promise<boolean> {
-    const fileUrl = `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=etag,appProperties`;
+    const fileUrl = `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=appProperties`;
     const metadata = await this.request(fileUrl);
 
     const appProperties = metadata.appProperties || {};
@@ -150,9 +147,6 @@ export class GoogleSheetsFetchClient {
 
     await this.request(patchUrl, {
       method: 'PATCH',
-      headers: {
-        'If-Match': metadata.etag,
-      },
       body: JSON.stringify({
         appProperties: {
           migration_lock: null,
@@ -219,25 +213,20 @@ export class GoogleSheetsFetchClient {
     await this.batchUpdate(spreadsheetId, requests);
   }
 
-  async getFileAppProperties(spreadsheetId: string): Promise<{ etag: string; appProperties: Record<string, string> }> {
-    const fileUrl = `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=etag,appProperties`;
+  async getFileAppProperties(spreadsheetId: string): Promise<{ appProperties: Record<string, string> }> {
+    const fileUrl = `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=appProperties`;
     const metadata = await this.request(fileUrl);
     return {
-      etag: metadata.etag,
       appProperties: metadata.appProperties || {},
     };
   }
 
   async updateFileAppProperties(
     spreadsheetId: string,
-    properties: Record<string, string | null>,
-    etag?: string
+    properties: Record<string, string | null>
   ): Promise<void> {
     const fileUrl = `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=appProperties`;
     const headers: Record<string, string> = {};
-    if (etag) {
-      headers['If-Match'] = etag;
-    }
 
     await this.request(fileUrl, {
       method: 'PATCH',
