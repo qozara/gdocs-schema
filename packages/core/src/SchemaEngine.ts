@@ -238,65 +238,123 @@ export class SchemaEngine {
     }
 
     // 3. If options?.createBackup !== false, create a Drive safety backup
+    let backupId: string | undefined;
     if (!backupAlreadyCreated && actualOptions.createBackup !== false) {
-      await this.client.createBackup(
+      backupId = await this.client.createBackup(
         spreadsheetId,
         actualOptions.customBackupName
       );
     }
 
-    // Fetch spreadsheet metadata to get current sheet IDs & titles
-    const metadata = await this.client.getSpreadsheetMetadata(
-      spreadsheetId,
-      'properties.title,sheets.properties(sheetId,title)'
-    );
-    const sheets: any[] = metadata.sheets || [];
-    const existingSheetMap = new Map<string, { sheetId: number; title: string }>();
-    for (const s of sheets) {
-      if (s.properties?.title) {
-        existingSheetMap.set(s.properties.title.trim().toLowerCase(), {
-          sheetId: s.properties.sheetId,
-          title: s.properties.title,
-        });
+    try {
+      // Fetch spreadsheet metadata to get current sheet IDs & titles
+      const metadata = await this.client.getSpreadsheetMetadata(
+        spreadsheetId,
+        'properties.title,sheets.properties(sheetId,title)'
+      );
+      const sheets: any[] = metadata.sheets || [];
+      const existingSheetMap = new Map<string, { sheetId: number; title: string }>();
+      for (const s of sheets) {
+        if (s.properties?.title) {
+          existingSheetMap.set(s.properties.title.trim().toLowerCase(), {
+            sheetId: s.properties.sheetId,
+            title: s.properties.title,
+          });
+        }
       }
-    }
 
-    // 4. For any missing tab in schema.tabs:
-    //    - Call batchUpdate with addSheet (title, frozen header row).
-    //    - Write column headers to row 1.
-    for (const tab of schema.tabs) {
-      const existing = existingSheetMap.get(tab.name.trim().toLowerCase());
-      if (!existing) {
-        const addResult = await this.client.batchUpdate(spreadsheetId, [
-          {
-            addSheet: {
-              properties: {
-                title: tab.name,
-                gridProperties: {
-                  frozenRowCount: 1,
+      // 4. For any missing tab in schema.tabs:
+      //    - Call batchUpdate with addSheet (title, frozen header row).
+      //    - Write column headers to row 1.
+      for (const tab of schema.tabs) {
+        const existing = existingSheetMap.get(tab.name.trim().toLowerCase());
+        if (!existing) {
+          const addResult = await this.client.batchUpdate(spreadsheetId, [
+            {
+              addSheet: {
+                properties: {
+                  title: tab.name,
+                  gridProperties: {
+                    frozenRowCount: 1,
+                  },
                 },
               },
             },
-          },
+          ]);
+
+          const newSheetId = addResult?.replies?.[0]?.addSheet?.properties?.sheetId;
+
+          if (tab.columns.length > 0 && newSheetId !== undefined) {
+            await this.client.batchUpdate(spreadsheetId, [
+              {
+                updateCells: {
+                  range: {
+                    sheetId: newSheetId,
+                    startRowIndex: 0,
+                    endRowIndex: 1,
+                    startColumnIndex: 0,
+                    endColumnIndex: tab.columns.length,
+                  },
+                  rows: [
+                    {
+                      values: tab.columns.map(col => ({
+                        userEnteredValue: { stringValue: col.name },
+                      })),
+                    },
+                  ],
+                  fields: 'userEnteredValue',
+                },
+              },
+            ]);
+          }
+        }
+      }
+
+      // 5. For existing tabs missing columns:
+      //    - Append missing column dimensions.
+      //    - Insert missing header values into row 1.
+      for (const tab of schema.tabs) {
+        const existing = existingSheetMap.get(tab.name.trim().toLowerCase());
+        if (!existing) continue;
+
+        const headerRes = await this.client.batchGet(spreadsheetId, [
+          `'${existing.title}'!1:1`,
         ]);
+        const rowValues = headerRes?.valueRanges?.[0]?.values?.[0] || [];
+        const existingHeaders = rowValues.map((h: any) => String(h).trim());
+        const existingSet = new Set(existingHeaders);
 
-        const newSheetId = addResult?.replies?.[0]?.addSheet?.properties?.sheetId;
+        const missingCols = tab.columns
+          .filter(
+            col =>
+              col.required !== false &&
+              !existingSet.has(col.name)
+          )
+          .map(col => col.name);
 
-        if (tab.columns.length > 0 && newSheetId !== undefined) {
+        if (missingCols.length > 0) {
+          const startIndex = existingHeaders.length;
           await this.client.batchUpdate(spreadsheetId, [
+            {
+              appendDimension: {
+                sheetId: existing.sheetId,
+                dimension: 'COLUMNS',
+                length: missingCols.length,
+              },
+            },
             {
               updateCells: {
                 range: {
-                  sheetId: newSheetId,
+                  sheetId: existing.sheetId,
                   startRowIndex: 0,
                   endRowIndex: 1,
-                  startColumnIndex: 0,
-                  endColumnIndex: tab.columns.length,
+                  startColumnIndex: startIndex,
+                  endColumnIndex: startIndex + missingCols.length,
                 },
                 rows: [
                   {
-                    values: tab.columns.map(col => ({
-                      userEnteredValue: { stringValue: col.name },
+                    values: missingCols.map(colName => ({
+                      userEnteredValue: { stringValue: colName },
                     })),
                   },
                 ],
@@ -306,67 +364,30 @@ export class SchemaEngine {
           ]);
         }
       }
-    }
 
-    // 5. For existing tabs missing columns:
-    //    - Append missing column dimensions.
-    //    - Insert missing header values into row 1.
-    for (const tab of schema.tabs) {
-      const existing = existingSheetMap.get(tab.name.trim().toLowerCase());
-      if (!existing) continue;
-
-      const headerRes = await this.client.batchGet(spreadsheetId, [
-        `'${existing.title}'!1:1`,
-      ]);
-      const rowValues = headerRes?.valueRanges?.[0]?.values?.[0] || [];
-      const existingHeaders = rowValues.map((h: any) => String(h).trim());
-      const existingSet = new Set(existingHeaders);
-
-      const missingCols = tab.columns
-        .filter(
-          col =>
-            col.required !== false &&
-            !existingSet.has(col.name)
-        )
-        .map(col => col.name);
-
-      if (missingCols.length > 0) {
-        const startIndex = existingHeaders.length;
-        await this.client.batchUpdate(spreadsheetId, [
-          {
-            appendDimension: {
-              sheetId: existing.sheetId,
-              dimension: 'COLUMNS',
-              length: missingCols.length,
-            },
-          },
-          {
-            updateCells: {
-              range: {
-                sheetId: existing.sheetId,
-                startRowIndex: 0,
-                endRowIndex: 1,
-                startColumnIndex: startIndex,
-                endColumnIndex: startIndex + missingCols.length,
-              },
-              rows: [
-                {
-                  values: missingCols.map(colName => ({
-                    userEnteredValue: { stringValue: colName },
-                  })),
-                },
-              ],
-              fields: 'userEnteredValue',
-            },
-          },
-        ]);
+      // 6. Verify structure is now READY
+      const finalHealth = await this.checkHealth(spreadsheetId, schema);
+      if (finalHealth.status !== ValidationStatus.READY) {
+        throw new Error(`Repair failed: schema is still ${finalHealth.status}`);
       }
-    }
 
-    // 6. Verify structure is now READY
-    const finalHealth = await this.checkHealth(spreadsheetId, schema);
-    if (finalHealth.status !== ValidationStatus.READY) {
-      throw new Error(`Repair failed: schema is still ${finalHealth.status}`);
+      // Cleanup ephemeral backup on success unless keepBackup is requested
+      if (backupId && !actualOptions.keepBackup) {
+        try {
+          await this.client.deleteFile(backupId);
+        } catch {
+          // Non-blocking cleanup failure
+        }
+      }
+    } catch (repairError) {
+      if (backupId) {
+        try {
+          await this.client.restoreBackup(backupId, spreadsheetId);
+        } catch {
+          // secondary restore error ignored
+        }
+      }
+      throw repairError;
     }
   }
 
@@ -499,6 +520,15 @@ export class SchemaEngine {
         applied.push(migration.version);
       }
 
+      // Cleanup ephemeral backup on success unless keepBackup is requested
+      if (backupId && !options?.keepBackup) {
+        try {
+          await this.client.deleteFile(backupId);
+        } catch {
+          // Non-blocking cleanup failure
+        }
+      }
+
       return { success: true, applied };
     } catch (migrationError) {
       if (backupId) {
@@ -575,7 +605,7 @@ export class SchemaEngine {
           },
         },
       ]);
-    } catch (e: any) {
+    } catch {
       // Non-fatal if sheet already exists or batchUpdate fails
     }
   }

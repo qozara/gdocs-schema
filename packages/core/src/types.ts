@@ -22,6 +22,7 @@ export interface LifecycleOptions {
   createBackup?: boolean;
   customBackupName?: string;
   migrations?: Migration[];
+  keepBackup?: boolean;
 }
 
 export interface ColumnDefinition {
