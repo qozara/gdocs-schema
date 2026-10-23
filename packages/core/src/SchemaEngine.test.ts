@@ -38,6 +38,7 @@ describe('SchemaEngine', () => {
       restoreBackup: vi.fn().mockResolvedValue(undefined),
       acquireLock: vi.fn().mockResolvedValue(true),
       releaseLock: vi.fn().mockResolvedValue(true),
+      deleteFile: vi.fn().mockResolvedValue(undefined),
     };
     engine = new SchemaEngine(mockClient as unknown as GoogleSheetsFetchClient);
   });
@@ -417,6 +418,88 @@ describe('SchemaEngine', () => {
           }),
         ])
       );
+
+      // Verify ephemeral safety backup was deleted on successful repair
+      expect(mockClient.deleteFile).toHaveBeenCalledWith('backup-123');
+    });
+
+    it('preserves safety backup on repair if keepBackup is true', async () => {
+      mockClient.getSpreadsheetMetadata.mockResolvedValueOnce({
+        sheets: [
+          { properties: { sheetId: 999, title: '_migrations' } },
+          { properties: { sheetId: 10, title: 'Users' } },
+        ],
+      });
+      mockClient.batchGet.mockResolvedValueOnce({
+        valueRanges: [{ range: '_migrations!A2:B', values: [['2', '...']] }],
+      });
+      mockClient.batchGet.mockResolvedValueOnce({
+        valueRanges: [{ range: "'Users'!1:1", values: [['id', 'name']] }],
+      });
+      mockClient.getSpreadsheetMetadata.mockResolvedValueOnce({
+        sheets: [
+          { properties: { sheetId: 999, title: '_migrations' } },
+          { properties: { sheetId: 10, title: 'Users' } },
+        ],
+      });
+      mockClient.batchUpdate.mockResolvedValueOnce({
+        replies: [{ addSheet: { properties: { sheetId: 20, title: 'Settings' } } }],
+      });
+      mockClient.batchUpdate.mockResolvedValueOnce({});
+      mockClient.batchGet.mockResolvedValueOnce({
+        valueRanges: [{ range: "'Users'!1:1", values: [['id', 'name']] }],
+      });
+      mockClient.batchUpdate.mockResolvedValueOnce({});
+      mockClient.getSpreadsheetMetadata.mockResolvedValueOnce({
+        sheets: [
+          { properties: { sheetId: 999, title: '_migrations' } },
+          { properties: { sheetId: 10, title: 'Users' } },
+          { properties: { sheetId: 20, title: 'Settings' } },
+        ],
+      });
+      mockClient.batchGet.mockResolvedValueOnce({
+        valueRanges: [{ range: '_migrations!A2:B', values: [['2', '...']] }],
+      });
+      mockClient.batchGet.mockResolvedValueOnce({
+        valueRanges: [
+          { range: "'Users'!1:1", values: [['id', 'name', 'email']] },
+          { range: "'Settings'!1:1", values: [['key', 'value']] },
+        ],
+      });
+
+      await engine.repair(spreadsheetId, schema, { keepBackup: true });
+
+      expect(mockClient.createBackup).toHaveBeenCalled();
+      expect(mockClient.deleteFile).not.toHaveBeenCalled();
+    });
+
+    it('rolls back with restoreBackup and preserves backup if repair fails', async () => {
+      mockClient.getSpreadsheetMetadata.mockResolvedValueOnce({
+        sheets: [
+          { properties: { sheetId: 999, title: '_migrations' } },
+          { properties: { sheetId: 10, title: 'Users' } },
+        ],
+      });
+      mockClient.batchGet.mockResolvedValueOnce({
+        valueRanges: [{ range: '_migrations!A2:B', values: [['2', '...']] }],
+      });
+      mockClient.batchGet.mockResolvedValueOnce({
+        valueRanges: [{ range: "'Users'!1:1", values: [['id', 'name']] }],
+      });
+      mockClient.getSpreadsheetMetadata.mockResolvedValueOnce({
+        sheets: [
+          { properties: { sheetId: 999, title: '_migrations' } },
+          { properties: { sheetId: 10, title: 'Users' } },
+        ],
+      });
+      // Fail during addSheet
+      mockClient.batchUpdate.mockRejectedValueOnce(new Error('Drive quota exceeded'));
+
+      await expect(engine.repair(spreadsheetId, schema)).rejects.toThrow('Drive quota exceeded');
+
+      expect(mockClient.createBackup).toHaveBeenCalled();
+      expect(mockClient.restoreBackup).toHaveBeenCalledWith('backup-123', spreadsheetId);
+      expect(mockClient.deleteFile).not.toHaveBeenCalled();
     });
 
     it('throws error when attempting to repair INCOMPATIBLE schema', async () => {
@@ -565,6 +648,35 @@ describe('SchemaEngine', () => {
           }),
         ])
       );
+
+      // Verify ephemeral safety backup was deleted on successful migration
+      expect(mockClient.deleteFile).toHaveBeenCalledWith('backup-123');
+    });
+
+    it('preserves safety backup on migrate if keepBackup is true', async () => {
+      mockClient.getSpreadsheetMetadata.mockResolvedValueOnce({
+        properties: { title: 'V1 Sheet' },
+        sheets: [{ properties: { sheetId: 999, title: '_migrations' } }],
+      });
+      mockClient.batchGet.mockResolvedValueOnce({
+        valueRanges: [{ range: '_migrations!A2:B', values: [['1', '...']] }],
+      });
+      mockClient.getSpreadsheetMetadata.mockResolvedValueOnce({
+        properties: { title: 'V1 Sheet' },
+        sheets: [{ properties: { sheetId: 999, title: '_migrations' } }],
+      });
+      mockClient.batchUpdate.mockResolvedValueOnce({});
+
+      const m2Up = vi.fn().mockResolvedValue(null);
+      const migrations: Migration[] = [{ version: 2, up: m2Up, down: vi.fn() }];
+
+      const result = await engine.migrate(spreadsheetId, schema, migrations, {
+        keepBackup: true,
+      });
+
+      expect(result.success).toBe(true);
+      expect(mockClient.createBackup).toHaveBeenCalled();
+      expect(mockClient.deleteFile).not.toHaveBeenCalled();
     });
 
     it('throws error when migrating INCOMPATIBLE schema', async () => {
