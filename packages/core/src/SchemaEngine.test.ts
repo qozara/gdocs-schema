@@ -605,4 +605,71 @@ describe('SchemaEngine', () => {
       expect(mockClient.releaseLock).toHaveBeenCalled();
     });
   });
+
+  describe('initializeFile', () => {
+    it('creates _migrations tab and stamps version row when missing', async () => {
+      mockClient.getSpreadsheetMetadata.mockResolvedValueOnce({
+        sheets: [{ properties: { sheetId: 1, title: 'Sheet1' } }],
+      });
+      mockClient.batchUpdate.mockResolvedValueOnce({
+        replies: [{ addSheet: { properties: { sheetId: 777 } } }],
+      });
+      mockClient.batchUpdate.mockResolvedValueOnce({});
+
+      await engine.initializeFile(spreadsheetId, 2);
+
+      expect(mockClient.batchUpdate).toHaveBeenCalledWith(
+        spreadsheetId,
+        expect.arrayContaining([
+          expect.objectContaining({
+            addSheet: { properties: { title: '_migrations', hidden: true } },
+          }),
+        ])
+      );
+      expect(mockClient.batchUpdate).toHaveBeenCalledWith(
+        spreadsheetId,
+        expect.arrayContaining([
+          expect.objectContaining({
+            updateCells: expect.objectContaining({
+              range: expect.objectContaining({ sheetId: 777 }),
+              rows: expect.arrayContaining([
+                expect.objectContaining({
+                  values: [
+                    { userEnteredValue: { stringValue: 'version' } },
+                    { userEnteredValue: { stringValue: 'migrated_at' } },
+                  ],
+                }),
+                expect.objectContaining({
+                  values: [
+                    { userEnteredValue: { numberValue: 2 } },
+                    expect.objectContaining({ userEnteredValue: expect.any(Object) }),
+                  ],
+                }),
+              ]),
+            }),
+          }),
+        ])
+      );
+    });
+
+    it('updates version row when _migrations tab already exists', async () => {
+      mockClient.getSpreadsheetMetadata.mockResolvedValueOnce({
+        sheets: [{ properties: { sheetId: 888, title: '_migrations' } }],
+      });
+      mockClient.batchUpdate.mockResolvedValueOnce({});
+
+      await engine.initializeFile(spreadsheetId, 2);
+
+      expect(mockClient.batchUpdate).toHaveBeenCalledWith(
+        spreadsheetId,
+        expect.arrayContaining([
+          expect.objectContaining({
+            updateCells: expect.objectContaining({
+              range: expect.objectContaining({ sheetId: 888 }),
+            }),
+          }),
+        ])
+      );
+    });
+  });
 });

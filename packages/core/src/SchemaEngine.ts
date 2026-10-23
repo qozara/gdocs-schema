@@ -520,4 +520,63 @@ export class SchemaEngine {
       }
     }
   }
+
+  async initializeFile(spreadsheetId: string, version: number): Promise<void> {
+    try {
+      const metadata = await this.client.getSpreadsheetMetadata(
+        spreadsheetId,
+        'properties.title,sheets.properties(sheetId,title)'
+      );
+      const sheets: any[] = metadata?.sheets || [];
+      const migrationsSheet = sheets.find(
+        s => (s.properties?.title || '').trim().toLowerCase() === '_migrations'
+      );
+
+      let migrationsSheetId: number;
+      if (!migrationsSheet) {
+        const addResult = await this.client.batchUpdate(spreadsheetId, [
+          {
+            addSheet: {
+              properties: {
+                title: '_migrations',
+                hidden: true,
+              },
+            },
+          },
+        ]);
+        migrationsSheetId = addResult.replies[0].addSheet.properties.sheetId;
+      } else {
+        migrationsSheetId = migrationsSheet.properties.sheetId;
+      }
+
+      await this.client.batchUpdate(spreadsheetId, [
+        {
+          updateCells: {
+            rows: [
+              {
+                values: [
+                  { userEnteredValue: { stringValue: 'version' } },
+                  { userEnteredValue: { stringValue: 'migrated_at' } },
+                ],
+              },
+              {
+                values: [
+                  { userEnteredValue: { numberValue: version } },
+                  { userEnteredValue: { stringValue: new Date().toISOString() } },
+                ],
+              },
+            ],
+            fields: 'userEnteredValue',
+            range: {
+              sheetId: migrationsSheetId,
+              startRowIndex: 0,
+              startColumnIndex: 0,
+            },
+          },
+        },
+      ]);
+    } catch (e: any) {
+      // Non-fatal if sheet already exists or batchUpdate fails
+    }
+  }
 }
