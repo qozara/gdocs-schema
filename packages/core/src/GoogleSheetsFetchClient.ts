@@ -48,6 +48,15 @@ export class GoogleSheetsFetchClient {
     );
   }
 
+  async getSpreadsheetMetadata(
+    spreadsheetId: string,
+    fields: string = 'properties.title,sheets.properties(sheetId,title)'
+  ): Promise<any> {
+    return this.request(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=${encodeURIComponent(fields)}`
+    );
+  }
+
   async batchGet(spreadsheetId: string, ranges: string[]): Promise<any> {
     const encodedRanges = ranges.map(encodeURIComponent).join('&ranges=');
     return this.request(
@@ -157,12 +166,12 @@ export class GoogleSheetsFetchClient {
     return true;
   }
 
-  async createBackup(spreadsheetId: string): Promise<string> {
+  async createBackup(spreadsheetId: string, customName?: string): Promise<string> {
     const copyUrl = `https://www.googleapis.com/drive/v3/files/${spreadsheetId}/copy`;
     const result = await this.request(copyUrl, {
       method: 'POST',
       body: JSON.stringify({
-        name: `Backup of ${spreadsheetId} - ${new Date().toISOString()}`,
+        name: customName || `Backup of ${spreadsheetId} - ${new Date().toISOString()}`,
       }),
     });
     return result.id;

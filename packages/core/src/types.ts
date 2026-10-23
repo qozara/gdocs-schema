@@ -1,5 +1,29 @@
 import { GoogleSheetsFetchClient } from './GoogleSheetsFetchClient.js';
 
+export enum ValidationStatus {
+  READY = 'READY',
+  UPGRADE_REQUIRED = 'UPGRADE_REQUIRED',
+  CORRUPTED = 'CORRUPTED',
+  INCOMPATIBLE = 'INCOMPATIBLE',
+}
+
+export interface SchemaStatusDTO {
+  spreadsheetId: string;
+  currentVersion: number;
+  latestVersion: number;
+  status: ValidationStatus;
+  missingTabs: string[];
+  missingColumns: Record<string, string[]>;
+  canAutoMigrate: boolean;
+  lastModifiedTime?: string;
+}
+
+export interface LifecycleOptions {
+  createBackup?: boolean;
+  customBackupName?: string;
+  migrations?: Migration[];
+}
+
 export interface ColumnDefinition {
   name: string;
   type?: 'string' | 'number' | 'boolean' | 'integer';
