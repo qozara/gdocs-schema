@@ -56,6 +56,54 @@ describe('GoogleSheetsFetchClient', () => {
     });
   });
 
+  describe('getSpreadsheetMetadata', () => {
+    it('should fetch spreadsheet metadata with default fields', async () => {
+      const mockResponse = {
+        properties: { title: 'Test Spreadsheet' },
+        sheets: [{ properties: { sheetId: 0, title: 'Sheet1' } }],
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await client.getSpreadsheetMetadata(spreadsheetId);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=properties.title%2Csheets.properties(sheetId%2Ctitle)`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should fetch spreadsheet metadata with custom fields', async () => {
+      const mockResponse = { properties: { title: 'Custom' } };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const result = await client.getSpreadsheetMetadata(spreadsheetId, 'properties.title');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=properties.title`,
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      expect(result).toEqual(mockResponse);
+    });
+  });
+
   describe('batchGet', () => {
     it('should call batchGet endpoint with correct ranges', async () => {
       const mockResponse = {
@@ -227,6 +275,29 @@ describe('GoogleSheetsFetchClient', () => {
             'Content-Type': 'application/json',
           },
           body: expect.any(String),
+        }
+      );
+    });
+
+    it('should create backup with custom name if provided', async () => {
+      const mockResponse = { id: 'backup-custom-id' };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+      const customName = 'Custom Backup File';
+      const result = await client.createBackup(spreadsheetId, customName);
+      expect(result).toBe('backup-custom-id');
+      expect(mockFetch).toHaveBeenCalledWith(
+        `https://www.googleapis.com/drive/v3/files/${spreadsheetId}/copy`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ name: customName }),
         }
       );
     });

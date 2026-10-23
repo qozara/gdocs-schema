@@ -3,3 +3,4 @@ export * from './types.js';
 export * from './SchemaHasher.js';
 export * from './SchemaValidator.js';
 export * from './MigrationManager.js';
+export * from './SchemaEngine.js';
