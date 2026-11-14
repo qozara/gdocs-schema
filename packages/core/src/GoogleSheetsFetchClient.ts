@@ -1,10 +1,10 @@
 export interface GoogleSheetsFetchClientOptions {
-  accessToken: string;
+  accessToken: string | (() => string | null);
   fetchImpl?: typeof fetch;
 }
 
 export class GoogleSheetsFetchClient {
-  private accessToken: string;
+  private accessToken: string | (() => string | null);
   private fetch: typeof fetch;
 
   constructor(options: GoogleSheetsFetchClientOptions) {
@@ -12,11 +12,22 @@ export class GoogleSheetsFetchClient {
     this.fetch = options.fetchImpl || globalThis.fetch;
   }
 
+  private resolveAccessToken(): string {
+    const token =
+      typeof this.accessToken === 'function' ? this.accessToken() : this.accessToken;
+    if (!token) {
+      throw new Error('Google Auth Failed: Access token is missing or expired');
+    }
+    return token;
+  }
+
   private async request(url: string, init: RequestInit = {}): Promise<any> {
-    const headers = {
-      Authorization: `Bearer ${this.accessToken}`,
-      'Content-Type': 'application/json',
-      ...init.headers,
+    const token = this.resolveAccessToken();
+    const hasBody = init.body !== undefined || (Boolean(init.method) && init.method !== 'GET');
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+      ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+      ...(init.headers as Record<string, string> | undefined),
     };
 
     const response = await this.fetch(url, {
@@ -222,11 +233,14 @@ export class GoogleSheetsFetchClient {
     await this.batchUpdate(spreadsheetId, requests);
   }
 
-  async getFileAppProperties(spreadsheetId: string): Promise<{ appProperties: Record<string, string> }> {
-    const fileUrl = `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=appProperties`;
+  async getFileAppProperties(
+    spreadsheetId: string
+  ): Promise<{ appProperties: Record<string, string>; modifiedTime?: string }> {
+    const fileUrl = `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=appProperties,modifiedTime`;
     const metadata = await this.request(fileUrl);
     return {
       appProperties: metadata.appProperties || {},
+      modifiedTime: metadata.modifiedTime,
     };
   }
 

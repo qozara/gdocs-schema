@@ -35,7 +35,6 @@ describe('GoogleSheetsFetchClient', () => {
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
           },
         }
       );
@@ -75,7 +74,6 @@ describe('GoogleSheetsFetchClient', () => {
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
           },
         }
       );
@@ -96,7 +94,6 @@ describe('GoogleSheetsFetchClient', () => {
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
           },
         }
       );
@@ -124,7 +121,6 @@ describe('GoogleSheetsFetchClient', () => {
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
           },
         }
       );
@@ -364,6 +360,38 @@ describe('GoogleSheetsFetchClient', () => {
             ],
           }),
         })
+      );
+    });
+  });
+
+  describe('getFileAppProperties & dynamic token', () => {
+    it('fetches appProperties and modifiedTime using dynamic accessToken provider', async () => {
+      const dynamicClient = new GoogleSheetsFetchClient({
+        accessToken: () => 'dynamic-token',
+        fetchImpl: mockFetch,
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: async () =>
+          JSON.stringify({
+            appProperties: { version: '2' },
+            modifiedTime: '2026-11-10T10:00:00.000Z',
+          }),
+      });
+
+      const res = await dynamicClient.getFileAppProperties(spreadsheetId);
+      expect(res).toEqual({
+        appProperties: { version: '2' },
+        modifiedTime: '2026-11-10T10:00:00.000Z',
+      });
+      expect(mockFetch).toHaveBeenCalledWith(
+        `https://www.googleapis.com/drive/v3/files/${spreadsheetId}?fields=appProperties,modifiedTime`,
+        {
+          headers: {
+            Authorization: 'Bearer dynamic-token',
+          },
+        }
       );
     });
   });

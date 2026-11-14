@@ -12,6 +12,8 @@ export interface SchemaStatusDTO {
   currentVersion: number;
   latestVersion: number;
   status: ValidationStatus;
+  valid?: boolean;
+  errors?: string[];
   missingTabs: string[];
   missingColumns: Record<string, string[]>;
   canAutoMigrate: boolean;
@@ -40,6 +42,24 @@ export interface TabDefinition {
 export interface SchemaDefinition {
   version: number;
   tabs: TabDefinition[];
+}
+
+export class ConflictError extends Error {
+  constructor(message = 'Data has been modified by another user.') {
+    super(message);
+    this.name = 'ConflictError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+export class SchemaIncompatibleError extends Error {
+  constructor(
+    message = 'The underlying spreadsheet schema was created or upgraded by a newer version of the application. Please update or reinstall the app.'
+  ) {
+    super(message);
+    this.name = 'SchemaIncompatibleError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
 }
 
 export interface Migration {
