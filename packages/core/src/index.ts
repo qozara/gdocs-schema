@@ -4,3 +4,7 @@ export * from './SchemaHasher.js';
 export * from './SchemaValidator.js';
 export * from './MigrationManager.js';
 export * from './SchemaEngine.js';
+export * from './googleTypes.js';
+export * from './storage/IStorageLayer.js';
+export * from './storage/GoogleDriveStorageLayer.js';
+export * from './ValidationService.js';
