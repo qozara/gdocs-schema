@@ -1,5 +1,7 @@
 # GDocs Schema Manager (`@qozara/gdocs-schema`)
 
+> **Superseded / Deprecated:** This package has been consolidated into [`@qozara/cloud-sync`](https://github.com/qozara/cloud-sync/tree/main/packages/core) (`SchemaEngine`, `ITabularContainerDriver`, `_meta` manifest provenance) and [`@qozara/cloud-sync-google`](https://github.com/qozara/cloud-sync/tree/main/packages/google) (`GoogleSheetsContainerDriver`, `GoogleValidationService`, `GoogleSheetsTabularDriver`). New development should depend on `@qozara/cloud-sync` and `@qozara/cloud-sync-google`.
+
 A standalone Node.js package designed to handle client-side schema validation, structural integrity hashing, concurrent migration locking, and database-like migrations for Google Spreadsheets acting as structured databases.
 
 ---
